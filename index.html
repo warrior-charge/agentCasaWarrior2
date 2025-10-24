@@ -68,7 +68,7 @@
   </style>
 </head>
 <body>
-  <h1>Ask My Bedrock Agent</h1>
+  <h1>Ask a Polar Bear</h1>
   <div id="chat-box"></div>
   <div id="input-area">
     <input id="question" type="text" placeholder="Ask something..." />
@@ -110,7 +110,18 @@
         }
 
         const data = await response.json();
-        appendMessage(data.reply || "(No response from agent)", "agent");
+
+        // API Gateway wraps your real reply inside data.body
+        let replyText = "";
+        try {
+          const parsedBody = JSON.parse(data.body); // parse Lambda's body
+          replyText = parsedBody.reply;
+        } catch {
+          replyText = "(Invalid response format)";
+        }
+        
+        appendMessage(replyText || "(No response from agent)", "agent");
+
       } catch (err) {
         appendMessage("Error: " + err.message, "agent");
       }
