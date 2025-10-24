@@ -91,41 +91,52 @@
     }
 
     async function sendQuestion() {
-      const userInput = questionInput.value.trim();
-      if (!userInput) return;
+  const userInput = questionInput.value.trim();
+  if (!userInput) return;
 
-      appendMessage(userInput, "user");
-      questionInput.value = "";
+  appendMessage(userInput, "user");
+  questionInput.value = "";
 
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userInput })
-        });
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userInput }),
+    });
 
-        if (!response.ok) {
-          appendMessage("Error: " + response.statusText, "agent");
-          return;
-        }
-
-        const data = await response.json();
-
-        // API Gateway wraps your real reply inside data.body
-        let replyText = "";
-        try {
-          const parsedBody = JSON.parse(data.body); // parse Lambda's body
-          replyText = parsedBody.reply;
-        } catch {
-          replyText = "(Invalid response format)";
-        }
-        
-        appendMessage(replyText || "(No response from agent)", "agent");
-
-      } catch (err) {
-        appendMessage("Error: " + err.message, "agent");
-      }
+    if (!response.ok) {
+      appendMessage("Error: " + response.statusText, "agent");
+      return;
     }
+
+    const data = await response.json();
+    console.log("🔍 Raw response from API:", data);
+
+    // Try to extract the reply regardless of API format
+    let replyText = "(No response)";
+    if (data.reply) {
+      // direct reply (Lambda non-proxy style)
+      replyText = data.reply;
+    } else if (data.body) {
+      try {
+        const parsed =
+          typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+        replyText = parsed.reply || JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        console.error(" Error parsing data.body:", e);
+        replyText = data.body;
+      }
+    } else {
+      replyText = JSON.stringify(data, null, 2);
+    }
+
+    appendMessage(replyText, "agent");
+  } catch (err) {
+    appendMessage("Error: " + err.message, "agent");
+    console.error(" Fetch error:", err);
+  }
+}
+
 
     sendBtn.addEventListener("click", sendQuestion);
     questionInput.addEventListener("keydown", (e) => {
